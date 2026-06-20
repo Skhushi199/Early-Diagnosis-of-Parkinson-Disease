@@ -452,9 +452,17 @@ with tab2:
             # Step 1: Build DataFrame with all 28 raw features in correct order
             input_df = pd.DataFrame([voice_inputs])[v_all_features]
 
-            # Step 2: Impute (SimpleImputer handles NaN / missing values)
-            input_arr = v_imputer.transform(input_df)
-            input_df  = pd.DataFrame(input_arr, columns=v_all_features)
+            # Step 2: Impute missing values.
+            # Wrapped in try/except: if there is a sklearn version mismatch between
+            # where the pkl was saved and the deployment environment, we fall back to
+            # a passthrough — safe because st.number_input always returns a real number.
+            try:
+                input_arr = v_imputer.transform(input_df)
+                input_df  = pd.DataFrame(input_arr, columns=v_all_features)
+            except AttributeError:
+                # sklearn version mismatch (e.g. _fill_dtype missing).
+                # Inputs from the UI are never NaN, so imputation is a no-op here.
+                input_df = input_df.copy()
 
             # Step 3: RFE feature selection - keep only the 11 selected columns
             input_df = input_df[v_sel_features]
